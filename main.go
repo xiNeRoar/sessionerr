@@ -60,6 +60,10 @@ func main() {
 	}
 
 	for _, k := range torrents {
+		if k.Progress < 99.9 {
+			continue
+		}
+
 		exists := false
 		for _, v := range files {
 			if strings.Contains(v, k.Hash) {
