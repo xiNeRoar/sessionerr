@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	qbittorrent "github.com/autobrr/go-qbittorrent"
 )
@@ -22,8 +23,6 @@ func main() {
 	flag.StringVar(&crossSeedHost, "C", os.Getenv("CROSSSEED"), "CROSSSEED URL")
 
 	flag.Parse()
-
-	base := filepath.Join("./", path, "/BT_backup") + "/"
 
 	c := qbittorrent.NewClient(qbittorrent.Config{
 		Host:     host,
@@ -42,28 +41,22 @@ func main() {
 		os.Exit(2)
 	}
 
+	base := filepath.Join("./", path, "/BT_backup") + "/"
 	files, err := filepath.Glob(base + "*")
 	if err != nil {
 		fmt.Printf("Unable to get Backup dir: %q\n", err)
 		os.Exit(3)
 	}
 
-	for _, k := range files {
-		safe := false
-		for _, t := range torrents {
-			if strings.Contains(k, t.Hash) {
-				safe = true
-				break
-			}
-		}
-
-		if !safe {
-			fmt.Printf("Cleaning: %q\n", k)
-			os.Remove(k)
-		}
-	}
-
 	var wg sync.WaitGroup
+	wg.Add(2)
+	go CleanSessionDir(base, torrents, files, &wg)
+	go SubmitSessionTorrents(base, crossSeedHost, torrents, files, c, &wg)
+
+	wg.Wait()
+}
+
+func SubmitSessionTorrents(base, crossSeedHost string, torrents []qbittorrent.Torrent, files []string, c *qbittorrent.Client, wg *sync.WaitGroup) {
 	for _, k := range torrents {
 		exists := false
 		for _, v := range files {
@@ -89,16 +82,38 @@ func main() {
 			continue
 		}
 
-		wg.Add(1)
-		go func(hash, u string) {
-			if err := NotifyCrosseed(hash, u); err != nil {
-				fmt.Printf("Cross-Seed submission failed (%q) (%q): %q\n", hash, u, err)
-			}
-			wg.Done()
-		}(k.Hash, crossSeedHost)
+		if len(crossSeedHost) != 0 && !strings.Contains(k.Tags, "cross-seed") {
+			/* Works around a very silly Cross-Seed bug where it throws an internal error if it already knows about the infohash. */
+			wg.Add(1)
+			go func(hash, u string) {
+				if err := NotifyCrosseed(hash, u); err != nil {
+					fmt.Printf("Cross-Seed submission failed (%q) (%q): %q\n", hash, u, err)
+				}
+				wg.Done()
+			}(k.Hash, crossSeedHost)
+		}
 	}
 
-	wg.Wait()
+	wg.Done()
+}
+
+func CleanSessionDir(base string, torrents []qbittorrent.Torrent, files []string, wg *sync.WaitGroup) {
+	for _, k := range files {
+		safe := false
+		for _, t := range torrents {
+			if strings.Contains(k, t.Hash) {
+				safe = true
+				break
+			}
+		}
+
+		if !safe {
+			fmt.Printf("Cleaning: %q\n", k)
+			os.Remove(k)
+		}
+	}
+
+	wg.Done()
 }
 
 func NotifyCrosseed(hash, urlStr string) error {
@@ -109,7 +124,7 @@ func NotifyCrosseed(hash, urlStr string) error {
 	u := url.Values{}
 	u.Set("infoHash", hash)
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 	r, _ := http.NewRequest(http.MethodPost, urlStr, strings.NewReader(u.Encode()))
 	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
