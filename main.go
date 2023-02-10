@@ -3,19 +3,23 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	qbittorrent "github.com/autobrr/go-qbittorrent"
 )
 
 func main() {
-	var password, host, username, path string
+	var password, host, username, path, crossSeedHost string
 	flag.StringVar(&username, "U", os.Getenv("USERNAME"), "username")
 	flag.StringVar(&host, "H", os.Getenv("HOST"), "host")
 	flag.StringVar(&password, "P", os.Getenv("PASSWORD"), "password")
 	flag.StringVar(&path, "S", os.Getenv("SESSIONDIR"), "BT_backup")
+	flag.StringVar(&crossSeedHost, "C", os.Getenv("CROSSSEED"), "CROSSSEED URL")
 
 	flag.Parse()
 
@@ -59,11 +63,8 @@ func main() {
 		}
 	}
 
+	var wg sync.WaitGroup
 	for _, k := range torrents {
-		if k.Progress < 99.9 {
-			continue
-		}
-
 		exists := false
 		for _, v := range files {
 			if strings.Contains(v, k.Hash) {
@@ -87,5 +88,36 @@ func main() {
 			os.Remove(base + k.Hash + ".torrent")
 			continue
 		}
+
+		wg.Add(1)
+		go func(hash, u string) {
+			if err := NotifyCrosseed(hash, u); err != nil {
+				fmt.Printf("Cross-Seed submission failed (%q) (%q): %q\n", hash, u, err)
+			}
+			wg.Done()
+		}(k.Hash, crossSeedHost)
 	}
+
+	wg.Wait()
+}
+
+func NotifyCrosseed(hash, urlStr string) error {
+	if len(urlStr) == 0 {
+		return nil
+	}
+
+	var u url.Values
+	u.Set("infoHash", hash)
+
+	client := &http.Client{}
+	r, _ := http.NewRequest(http.MethodPost, urlStr, strings.NewReader(u.Encode()))
+	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := client.Do(r)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	return nil
 }
