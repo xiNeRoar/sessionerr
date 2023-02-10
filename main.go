@@ -58,6 +58,10 @@ func main() {
 
 func SubmitSessionTorrents(base, crossSeedHost string, torrents []qbittorrent.Torrent, files []string, c *qbittorrent.Client, wg *sync.WaitGroup) {
 	for _, k := range torrents {
+		if k.Progress < 100.0 {
+			continue
+		}
+
 		exists := false
 		for _, v := range files {
 			if strings.Contains(v, k.Hash) {
