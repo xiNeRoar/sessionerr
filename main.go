@@ -106,7 +106,7 @@ func NotifyCrosseed(hash, urlStr string) error {
 		return nil
 	}
 
-	var u url.Values
+	u := url.Values{}
 	u.Set("infoHash", hash)
 
 	client := &http.Client{}
