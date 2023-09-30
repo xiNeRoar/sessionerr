@@ -24,10 +24,17 @@ func main() {
 
 	flag.Parse()
 
+	// Decoding the URL-encoded password
+	decodedPassword, err := url.QueryUnescape(password)
+	if err != nil {
+		fmt.Printf("Error decoding password: %v\n", err)
+		os.Exit(1)
+	}
+
 	c := qbittorrent.NewClient(qbittorrent.Config{
 		Host:     host,
 		Username: username,
-		Password: password,
+		Password: decodedPassword,
 	})
 
 	if err := c.Login(); err != nil {
