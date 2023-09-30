@@ -40,6 +40,5 @@ Before you begin, make sure you have the following prerequisites installed:
 
 3. Build and start the Docker container:
 
-bash
-Copy code
-docker-compose up --build
+   ```bash
+   docker-compose up --build
