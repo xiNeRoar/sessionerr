@@ -4,17 +4,17 @@ services:
   sessionerr:
     build: .
     environment:
-      - USERNAME=<username>
-      - HOST=<HTTP://qbittorrent_host>
-      - PASSWORD=<password>
-      - SESSIONDIR=<session_dir>
-      - CROSSSEED=<HTTP://cross_seed_host>
+      - USERNAME=
+      - HOST=http://qbitorrent_url
+      - PASSWORD=password
+      - SESSIONDIR= #left blank if you not sure what to use, it point to your /BT_Backup by default
+      - CROSSSEED=http://crossseed_url
     networks:
       - cross-seeds_default
-      - bridge
+      - mynetwork
 
 networks:
   cross-seeds_default:
     external: true
-  bridge:
-    external: true
+  mynetwork:
+    driver: bridge
