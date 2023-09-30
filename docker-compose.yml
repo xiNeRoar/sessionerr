@@ -5,10 +5,10 @@ services:
     build: .
     environment:
       - USERNAME=<username>
-      - HOST=<qbittorrent_host>
+      - HOST=<HTTP://qbittorrent_host>
       - PASSWORD=<password>
       - SESSIONDIR=<session_dir>
-      - CROSSSEED=<cross_seed_host>
+      - CROSSSEED=<HTTP://cross_seed_host>
     networks:
       - cross-seeds_default
       - bridge
