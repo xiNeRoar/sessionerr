@@ -10,6 +10,6 @@ services:
       - SESSIONDIR= #left blank if you not sure what to use, it point to your /BT_Backup by default
       - CROSSSEED=http://crossseed_url
     networks:
-      #configure your network that cross-seed and qbit-torrent use here
+      - samplenetwork #configure your network that cross-seed and qbit-torrent use here
 
 
